@@ -1,0 +1,8 @@
+name: Trueracing
+version: '${version}'
+main: com.github.trueddd.trueracing.Trueracing
+api-version: 1.17
+prefix: RACING
+authors: [ truetripled ]
+description: Racing plugin
+website: none
