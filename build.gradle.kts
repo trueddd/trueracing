@@ -50,6 +50,15 @@ tasks {
         sourceCompatibility = javaVersion
         targetCompatibility = javaVersion
     }
+    val testServerPath: String by project
+    val cleanPlugins by register("cleanPlugins") {
+        delete("$testServerPath/plugins")
+    }
+    val copyPluginToServer by register<Copy>("copyPluginToServer") {
+        dependsOn(shadowJar)
+        from("$buildDir/libs")
+        into("$testServerPath/plugins")
+    }
     shadowJar {
         archiveClassifier.set("")
         project.configurations.implementation.get().isCanBeResolved = true
@@ -57,17 +66,8 @@ tasks {
         dependsOn(autoRelocate)
         minimize()
     }
-    build {
-        dependsOn(shadowJar)
-    }
     register<JavaExec>("deploy") {
-        val testServerPath: String by project
-        dependsOn(shadowJar)
-        delete("$testServerPath/plugins")
-        copy {
-            from("$buildDir/libs")
-            into("$testServerPath/plugins")
-        }
+        dependsOn(clean, cleanPlugins, copyPluginToServer)
         classpath("$testServerPath/paper-1.17.1.jar")
         workingDir = File(testServerPath)
         standardInput = System.`in`

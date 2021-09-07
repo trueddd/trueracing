@@ -1,6 +1,6 @@
 name: Trueracing
-version: '${version}'
-main: com.github.trueddd.trueracing.Trueracing
+version: '1.0.0'
+main: com.github.trueddd.trueracing.TrueRacing
 api-version: 1.17
 prefix: RACING
 authors: [ truetripled ]
