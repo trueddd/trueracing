@@ -6,3 +6,6 @@ prefix: RACING
 authors: [ truetripled ]
 description: Racing plugin
 website: none
+commands:
+  finish-line:
+    description: start marking a finish line
