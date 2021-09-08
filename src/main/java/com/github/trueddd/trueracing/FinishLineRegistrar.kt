@@ -6,6 +6,7 @@ import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.EquipmentSlot
 
+// todo: make it usable by multiple people in a time
 class FinishLineRegistrar : Listener {
 
     var isNowMarking: Boolean = false
@@ -25,7 +26,7 @@ class FinishLineRegistrar : Listener {
 
     private fun onMarked() {
         currentLine.forEach {
-            it.world.playEffect(it, Effect.LAVA_CONVERTS_BLOCK, 0)
+            it.world.playEffect(it, Effect.VILLAGER_PLANT_GROW, 5)
         }
     }
 
