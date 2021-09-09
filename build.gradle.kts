@@ -22,6 +22,8 @@ repositories {
 dependencies {
     val kotlinVersion: String by System.getProperties()
     implementation(kotlin("stdlib", kotlinVersion))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2-native-mt")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.5.2-native-mt")
     val paperAPIVersion: String by project
     compileOnly("io.papermc.paper", "paper-api", paperAPIVersion)
 }
