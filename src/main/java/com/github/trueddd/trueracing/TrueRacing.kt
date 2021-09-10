@@ -5,11 +5,11 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.plus
-import org.bukkit.Location
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.plugin.java.JavaPlugin
 
+// todo: refactor
 @Suppress("unused")
 class TrueRacing : JavaPlugin() {
 
@@ -30,26 +30,10 @@ class TrueRacing : JavaPlugin() {
         server.consoleSender.sendMessage("Plugin disabled")
     }
 
-    private fun Location.isSame(other: Location): Boolean {
-        return world.uid == other.world.uid
-                && blockX == other.blockX
-                && blockY == other.blockY
-                && blockZ == other.blockZ
-    }
-
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
         when (command.label) {
             "finish-line" -> {
-                if (args.isEmpty()) {
-                    finishLineRegistrar.isNowMarking = !finishLineRegistrar.isNowMarking
-                } else {
-                    when (args.first()) {
-                        "ns" -> finishLineRegistrar.direction = "ns"
-                        "sn" -> finishLineRegistrar.direction = "sn"
-                        "we" -> finishLineRegistrar.direction = "we"
-                        "ew" -> finishLineRegistrar.direction = "ew"
-                    }
-                }
+                finishLineRegistrar.isNowMarking = !finishLineRegistrar.isNowMarking
             }
             "race" -> {
                 if (lineCrossJob != null) {
@@ -61,24 +45,31 @@ class TrueRacing : JavaPlugin() {
                 if (line.isEmpty()) {
                     return true
                 }
+                val timings = mutableListOf<Long>()
                 lineCrossJob = finishLineListener.playerPosition
                     .onStart { println("race started") }
-                    .distinctUntilChanged { old, new ->
-                        // fixme
-                        val movedRight = when (finishLineRegistrar.direction) {
-                            "ns" -> old.blockZ < new.blockZ
-                            "sn" -> old.blockZ > new.blockZ
-                            "we" -> old.blockX < new.blockX
-                            "ew" -> old.blockX > new.blockX
-                            else -> return@distinctUntilChanged true
-                        }
-                        !movedRight
-                    }
-                    .filter { location ->
-                        line.any { it.isSame(location) }
-                    }
+                    .filterIfCrossed(line)
                     .flowOn(Dispatchers.Default)
-                    .onEach { consoleLog("crossed line at ${it.blockX} ${it.blockY} ${it.blockZ}") }
+                    .onEach {
+                        val time = System.currentTimeMillis()
+                        if (timings.isEmpty()) {
+                            consoleLog("started first lap")
+                        } else {
+                            val lapTime = time - timings.last()
+                            val lapTiming = lapTime.toTiming()
+                            val bestLapSoFar = timings.windowed(2, 1)
+                                .map { range -> range.last() - range.first() }
+                                .minOrNull()
+                            val formatted = if (bestLapSoFar == null || bestLapSoFar > lapTime) {
+                                lapTiming.formatPurple()
+                            } else {
+                                lapTiming.formatRed()
+                            }
+                            consoleLog("Lap time: $formatted")
+                        }
+                        timings.add(time)
+                    }
+                    .onCompletion { println("stop") }
                     .launchIn(GlobalScope + PluginDispatcher(this))
             }
         }

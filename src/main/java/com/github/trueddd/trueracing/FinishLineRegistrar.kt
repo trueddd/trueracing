@@ -27,12 +27,6 @@ class FinishLineRegistrar : Listener {
     val finishLine: Set<Location>
         get() = currentLine
 
-    var direction: String = ""
-        set(value) {
-            field = value
-            consoleLog("Direction is set to $value")
-        }
-
     private fun onMarked() {
         var minX = Int.MAX_VALUE
         var maxX = Int.MIN_VALUE
@@ -53,14 +47,7 @@ class FinishLineRegistrar : Listener {
                 minZ = it.blockZ
             }
         }
-        consoleLog("X { min: $minX; max: $maxX }; Z { min: $minZ; max: $maxZ }")
-        val diffX = maxX - minX
-        val diffZ = maxZ - minZ
-        when {
-            diffX > diffZ -> consoleLog("North or South")
-            diffZ > diffX -> consoleLog("East or West")
-            else -> consoleLog("Area is square")
-        }
+        println("X { min: $minX; max: $maxX }; Z { min: $minZ; max: $maxZ }")
     }
 
     @EventHandler
