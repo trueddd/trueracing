@@ -54,7 +54,9 @@ tasks {
     }
     val testServerPath: String by project
     val cleanPlugins by register("cleanPlugins") {
-        delete("$testServerPath/plugins")
+        delete(fileTree("$testServerPath/plugins").matching {
+            include("trueracing-*.jar")
+        })
     }
     val copyPluginToServer by register<Copy>("copyPluginToServer") {
         dependsOn(shadowJar)
@@ -68,11 +70,16 @@ tasks {
         dependsOn(autoRelocate)
         minimize()
     }
-    register<JavaExec>("deploy") {
-        dependsOn(clean, cleanPlugins, copyPluginToServer)
+    val runTestServerTask = register<JavaExec>("runTestServer") {
         classpath("$testServerPath/paper-1.17.1.jar")
         workingDir = File(testServerPath)
         standardInput = System.`in`
         args = listOf("nogui")
+    }
+    register("deploy") {
+        dependsOn(clean, cleanPlugins, copyPluginToServer)
+        doLast {
+            runTestServerTask.get().exec()
+        }
     }
 }

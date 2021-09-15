@@ -17,6 +17,7 @@ class FinishLineRegistrar : Listener {
             field = value
             if (value) {
                 currentLine.clear()
+                finishLineCorners = null
             } else {
                 onMarked()
             }
@@ -26,6 +27,9 @@ class FinishLineRegistrar : Listener {
 
     val finishLine: Set<Location>
         get() = currentLine
+
+    var finishLineCorners: Pair<Location, Location>? = null
+        private set
 
     private fun onMarked() {
         var minX = Int.MAX_VALUE
@@ -47,7 +51,14 @@ class FinishLineRegistrar : Listener {
                 minZ = it.blockZ
             }
         }
-        println("X { min: $minX; max: $maxX }; Z { min: $minZ; max: $maxZ }")
+//        println("X { min: $minX; max: $maxX }; Z { min: $minZ; max: $maxZ }")
+        if (currentLine.isEmpty()) {
+            finishLineCorners = null
+            return
+        }
+        val world = currentLine.first().world
+        val y = currentLine.first().blockY
+        finishLineCorners = Location(world, minX.toDouble(), y.toDouble(), minZ.toDouble()) to Location(world, maxX.toDouble(), y.toDouble(), maxZ.toDouble())
     }
 
     @EventHandler
@@ -60,6 +71,10 @@ class FinishLineRegistrar : Listener {
             return
         }
         if (event.player.inventory.itemInMainHand.type == Material.WOODEN_SWORD) {
+            if (currentLine.isNotEmpty() && block.location.blockY != currentLine.last().blockY) {
+                event.player.sendMessage("Cannot register finish line with changing Y coordinate.")
+                return
+            }
             event.player.sendMessage("registered ${block.type}")
             event.player.playSound(event.player.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.2f, 1.0f)
             currentLine.add(block.location)

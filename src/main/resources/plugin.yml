@@ -7,10 +7,17 @@ authors: [ truetripled ]
 description: Racing plugin
 website: none
 commands:
-  finish-line:
-    description: start marking a finish line
+  track:
+    aliases:
+      - track list
+      - track create
+      - track delete
+    description: Track managing
+#  track finish register:
+#    description: Enter track finish line registering mode
+#    usage: track finish register <track name>
+#  track finish delete:
+#    description: Delete track finish line
+#    usage: track finish delete <track name>
   race:
     description: start race
-libraries:
-  - com.github.shynixn.mccoroutine:mccoroutine-bukkit-api:1.5.0
-  - com.github.shynixn.mccoroutine:mccoroutine-bukkit-core:1.5.0

@@ -48,3 +48,12 @@ fun String.formatGreen(): String {
 fun String.formatPurple(): String {
     return "§5$this"
 }
+
+fun Location.toSimpleLocation(): com.github.trueddd.trueracing.data.Location {
+    return com.github.trueddd.trueracing.data.Location(
+        blockX,
+        blockY,
+        blockZ,
+        world.name,
+    )
+}
