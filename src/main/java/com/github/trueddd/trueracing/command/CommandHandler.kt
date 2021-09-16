@@ -9,12 +9,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.TextColor
 import org.bukkit.Location
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
+import org.bukkit.event.player.PlayerQuitEvent
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
+import kotlin.math.abs
 
 class CommandHandler(
     private val plugin: TrueRacing,
@@ -30,6 +34,8 @@ class CommandHandler(
     private val configFile by lazy { File(plugin.dataFolder, "config.json") }
 
     private val config = MutableStateFlow(PluginConfig.default())
+
+    private val scoreboardManager by lazy { ScoreboardManager() }
 
     init {
         if (!configFile.exists()) {
@@ -154,8 +160,11 @@ class CommandHandler(
             return true
         }
         val timings = mutableListOf<Long>()
+        val laps = mutableListOf<Long>()
         lineCrossJob = finishLineListener.playerPosition
-            .onStart { println("race started") }
+            .onStart {
+                plugin.server.pluginManager.registerEvents(scoreboardManager, plugin)
+            }
             .filterIfCrossed(line)
             .flowOn(Dispatchers.Default)
             .onEach {
@@ -164,20 +173,28 @@ class CommandHandler(
                     consoleLog("started first lap")
                 } else {
                     val lapTime = time - timings.last()
-                    val lapTiming = lapTime.toTiming()
-                    val bestLapSoFar = timings.windowed(2, 1)
-                        .map { range -> range.last() - range.first() }
-                        .minOrNull()
-                    val formatted = if (bestLapSoFar == null || bestLapSoFar > lapTime) {
-                        lapTiming.formatPurple()
-                    } else {
-                        lapTiming.formatRed()
-                    }
-                    consoleLog("Lap time: $formatted")
+                    val isBestSoFar = lapTime < (laps.minOrNull() ?: Long.MAX_VALUE)
+                    val diff = laps.minOrNull()?.minus(lapTime)
+                        ?.let { " ${if (isBestSoFar) "-" else "+"}${abs(it).toTiming()}" }
+                        ?: ""
+                    val actionBarColor = if (isBestSoFar) TextColor.color(0, 180, 0) else TextColor.color(160, 0, 0)
+                    // fixme: player ref
+                    plugin.server.onlinePlayers.first()
+                        .sendActionBar(
+                            Component.text(
+                                "${lapTime.toTiming()}$diff",
+                                actionBarColor
+                            )
+                        )
+                    laps.add(lapTime)
+                    scoreboardManager.updateLaps(plugin.server.onlinePlayers.first(), laps)
                 }
                 timings.add(time)
             }
-            .onCompletion { println("stop") }
+            .onCompletion {
+                scoreboardManager.clearAllBoards()
+                PlayerQuitEvent.getHandlerList().unregister(scoreboardManager)
+            }
             .launchIn(pluginScope)
         return true
     }

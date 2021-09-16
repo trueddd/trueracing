@@ -24,6 +24,7 @@ dependencies {
     implementation(kotlin("stdlib", kotlinVersion))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2-native-mt")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.5.2-native-mt")
+    implementation("fr.minuskube:netherboard-bukkit:1.2.2")
     val paperAPIVersion: String by project
     compileOnly("io.papermc.paper", "paper-api", paperAPIVersion)
 }
@@ -64,6 +65,7 @@ tasks {
         into("$testServerPath/plugins")
     }
     shadowJar {
+        relocate("fr.minuskube", "com.github.trueddd.board")
         archiveClassifier.set("")
         project.configurations.implementation.get().isCanBeResolved = true
         configurations = listOf(project.configurations.implementation.get())
