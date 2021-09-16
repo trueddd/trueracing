@@ -8,6 +8,8 @@ sealed class Commands {
             Track.List,
             Track.Create,
             Track.Delete,
+            Track.Finish.Create,
+            Track.Finish.Delete,
             Race,
         )
 
@@ -59,6 +61,6 @@ sealed class Commands {
     object Race : Commands() {
 
         override val tag = "race"
-        override val regex = Regex("^race$")
+        override val regex = Regex("^race ([\\w\\d-_]+)$")
     }
 }

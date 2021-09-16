@@ -12,12 +12,9 @@ commands:
       - track list
       - track create
       - track delete
+      - track finish create
+      - track finish delete
     description: Track managing
-#  track finish register:
-#    description: Enter track finish line registering mode
-#    usage: track finish register <track name>
-#  track finish delete:
-#    description: Delete track finish line
-#    usage: track finish delete <track name>
   race:
     description: start race
+    usage: race <track name>

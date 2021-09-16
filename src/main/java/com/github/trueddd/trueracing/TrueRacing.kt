@@ -14,14 +14,13 @@ class TrueRacing : JavaPlugin(), CoroutineScope {
         get() = PluginDispatcher(this)
 
     private val finishLineListener by lazy { FinishLineListener() }
-    private val finishLineRegistrar by lazy { FinishLineRegistrar() }
+    private val finishLineRegistrar by lazy { FinishLineRegistrar(this) }
 //    private val bossBarManager by lazy { BossBarManager(finishLineListener.playerPosition) }
     private val commandHandler by lazy { CommandHandler(this, finishLineRegistrar, finishLineListener) }
 
     override fun onEnable() {
         server.consoleSender.sendMessage("Plugin enabled")
         server.pluginManager.registerEvents(finishLineListener, this)
-        server.pluginManager.registerEvents(finishLineRegistrar, this)
 //        server.pluginManager.registerEvents(bossBarManager, this)
     }
 

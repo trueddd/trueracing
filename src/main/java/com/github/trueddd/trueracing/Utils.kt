@@ -1,5 +1,6 @@
 package com.github.trueddd.trueracing
 
+import com.github.trueddd.trueracing.data.FinishLineRectangle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
@@ -17,11 +18,18 @@ fun Location.isSame(other: Location): Boolean {
             && blockZ == other.blockZ
 }
 
-fun Flow<Location>.filterIfCrossed(blocks: Set<Location>): Flow<Location> {
+fun Flow<Location>.filterIfCrossed(finishLine: FinishLineRectangle): Flow<Location> {
     var inBlock = false
     return flow {
         collect { location ->
-            val nowInBlock = blocks.any { it.isSame(location) }
+            val nowInBlock = when {
+                location.world.name != finishLine.minCorner.world -> false
+                location.blockX >= finishLine.minCorner.x
+                        && location.blockX <= finishLine.maxCorner.x
+                        && location.blockZ >= finishLine.minCorner.z
+                        && location.blockZ <= finishLine.maxCorner.z -> true
+                else -> false
+            }
             if (nowInBlock && !inBlock) {
                 emit(location)
             }

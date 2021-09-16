@@ -1,7 +1,6 @@
 package com.github.trueddd.trueracing.command
 
 import com.github.trueddd.trueracing.*
-import com.github.trueddd.trueracing.data.FinishLine
 import com.github.trueddd.trueracing.data.PluginConfig
 import com.github.trueddd.trueracing.data.Track
 import com.google.gson.Gson
@@ -63,7 +62,7 @@ class CommandHandler(
             Commands.Track.Finish.Create -> registerFinishLine(commandSender, commandArgs)
             Commands.Track.List -> listTracks(commandSender)
             Commands.Track.Create -> addTrack(commandSender, commandArgs)
-            Commands.Race -> toggleRaceStatus()
+            Commands.Race -> toggleRaceStatus(commandSender, commandArgs)
             else -> false
         }
     }
@@ -97,27 +96,61 @@ class CommandHandler(
     }
 
     private fun registerFinishLine(commandSender: CommandSender, commandArgs: List<String>): Boolean {
-        val wasMarking = finishLineRegistrar.isNowMarking
-        finishLineRegistrar.isNowMarking = !finishLineRegistrar.isNowMarking
+        if (commandSender !is Player) {
+            commandSender.sendMessage("Only player can register finish lines.")
+            return true
+        }
+        val trackName = commandArgs.firstOrNull() ?: run {
+            commandSender.sendMessage("Pass track name to register finish line.")
+            return true
+        }
+        if (config.value.tracks.none { it.name == trackName }) {
+            commandSender.sendMessage("Track not found.")
+            return true
+        }
+        val wasMarking = finishLineRegistrar.isPlayerMarking(commandSender)
         if (wasMarking) {
-            finishLineRegistrar.finishLineCorners?.let { (first, second) ->
-                val finishLine = FinishLine(first.toSimpleLocation(), second.toSimpleLocation())
-                // todo
+            val finishLine = finishLineRegistrar.stopMarking(commandSender) ?: run {
+                commandSender.sendMessage("Cannot retrieve finish line")
+                return true
             }
+            config.value = config.value.copy(
+                tracks = config.value.tracks.map { track ->
+                    if (track.name != trackName) {
+                        track
+                    } else {
+                        Track(trackName, track.location, finishLine)
+                    }
+                }
+            )
+            updateConfig()
+            commandSender.sendMessage("Finish line for track \"$trackName\" saved.")
+        } else {
+            finishLineRegistrar.startMarking(commandSender)
+            commandSender.sendMessage("Take Wooden Sword and right click on blocks of finish line.")
         }
         return true
     }
 
     private var lineCrossJob: Job? = null
 
-    private fun toggleRaceStatus(): Boolean {
+    private fun toggleRaceStatus(commandSender: CommandSender, commandArgs: List<String>): Boolean {
+        if (commandArgs.isEmpty()) {
+            commandSender.sendMessage("Specify track for the race.")
+            return true
+        }
         if (lineCrossJob != null) {
             lineCrossJob?.cancel()
             lineCrossJob = null
             return true
         }
-        val line = finishLineRegistrar.finishLine
-        if (line.isEmpty()) {
+        println(commandArgs)
+        val trackName = commandArgs.firstOrNull() ?: run {
+            commandSender.sendMessage("Specify track for the race.")
+            return true
+        }
+        val line = config.value.tracks.firstOrNull { it.name == trackName }?.finishLine ?: run {
+            commandSender.sendMessage("Finish line is not specified for this track.")
             return true
         }
         val timings = mutableListOf<Long>()
