@@ -1,27 +1,19 @@
 package com.github.trueddd.trueracing.command
 
-import com.github.trueddd.trueracing.*
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.format.TextColor
+import com.github.trueddd.trueracing.FinishLineRegistrar
+import com.github.trueddd.trueracing.PilotsManager
+import com.github.trueddd.trueracing.PluginConfigManager
+import com.github.trueddd.trueracing.RaceManager
+import org.bukkit.ChatColor
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
-import org.bukkit.event.player.PlayerQuitEvent
-import kotlin.math.abs
 
 class CommandHandler(
-    private val plugin: TrueRacing,
     private val finishLineRegistrar: FinishLineRegistrar,
-    private val finishLineListener: FinishLineListener,
     private val pluginConfigManager: PluginConfigManager,
     private val pilotsManager: PilotsManager,
+    private val raceManager: RaceManager,
 ) {
-
-    private val pluginScope: CoroutineScope
-        get() = plugin
-
-    private val scoreboardManager by lazy { ScoreboardManager() }
 
     fun handle(commandSender: CommandSender, name: String, args: List<String>): Boolean {
         val (command, commandArgs) = Commands.parse(name, args) ?: return false
@@ -32,6 +24,7 @@ class CommandHandler(
             Commands.Track.Delete -> deleteTrack(commandSender, commandArgs)
             Commands.Race -> toggleRaceStatus(commandSender, commandArgs)
             Commands.Team.Create -> addTeam(commandSender, commandArgs)
+            Commands.Team.Delete -> deleteTeam(commandSender, commandArgs)
             Commands.Team.List -> listTeams(commandSender)
             else -> false
         }
@@ -61,12 +54,42 @@ class CommandHandler(
         return true
     }
 
+    private fun deleteTeam(commandSender: CommandSender, args: List<String>): Boolean {
+        if (commandSender !is Player) {
+            commandSender.sendMessage("You are not allowed to delete team.")
+            return true
+        }
+        val teamName = args.firstOrNull()
+        if (teamName.isNullOrEmpty()) {
+            commandSender.sendMessage("Team needs to be named.")
+            return true
+        }
+        val team = pilotsManager.getAllTeams().firstOrNull { it.name == teamName }
+        when {
+            team == null -> {
+                commandSender.sendMessage("Team not found.")
+            }
+            team.headPlayerName != commandSender.name -> {
+                commandSender.sendMessage("You are not allowed to delete team.")
+            }
+            else -> {
+                pilotsManager.deleteTeam(teamName)
+                commandSender.sendMessage("Team \"$teamName\" deleted")
+            }
+        }
+        return true
+    }
+
     private fun listTeams(commandSender: CommandSender): Boolean {
-        val teams = pilotsManager.getAllTeams().map { it.name }
+        val teams = pilotsManager.getAllTeams()
+            .map {
+                val color = ChatColor.getByChar(it.color) ?: ""
+                "$color${it.name}"
+            }
         if (teams.isEmpty()) {
             commandSender.sendMessage("No teams registered.")
         } else {
-            commandSender.sendMessage("Registered teams: ${teams.joinToString()}.")
+            commandSender.sendMessage("Registered teams: ${teams.joinToString("${ChatColor.WHITE}, ")}${ChatColor.WHITE}.")
         }
         return true
     }
@@ -76,12 +99,17 @@ class CommandHandler(
             commandSender.sendMessage("You are not allowed to register tracks.")
             return true
         }
-        val trackName = args.firstOrNull()
+        val trackName = args.getOrNull(0)
         if (trackName.isNullOrEmpty()) {
             commandSender.sendMessage("Track needs to be named.")
             return true
         }
-        pluginConfigManager.addTrack(trackName, commandSender.location)
+        val lapsCount = args.getOrNull(1)?.toIntOrNull()
+        if (lapsCount == null) {
+            commandSender.sendMessage("Specify laps count for the track.")
+            return true
+        }
+        pluginConfigManager.addTrack(trackName, lapsCount, commandSender.location)
         commandSender.sendMessage("Track \"$trackName\" created")
         return true
     }
@@ -139,63 +167,17 @@ class CommandHandler(
         return true
     }
 
-    private var lineCrossJob: Job? = null
-
     private fun toggleRaceStatus(commandSender: CommandSender, commandArgs: List<String>): Boolean {
-        if (commandArgs.isEmpty()) {
+        val trackName = commandArgs.firstOrNull()
+        if (trackName.isNullOrEmpty()) {
             commandSender.sendMessage("Specify track for the race.")
             return true
         }
-        if (lineCrossJob != null) {
-            lineCrossJob?.cancel()
-            lineCrossJob = null
-            return true
+        if (raceManager.isRaceRunning(trackName)) {
+            raceManager.stopRace(commandSender, trackName)
+        } else {
+            raceManager.startRace(commandSender, trackName)
         }
-        val trackName = commandArgs.firstOrNull() ?: run {
-            commandSender.sendMessage("Specify track for the race.")
-            return true
-        }
-        val line = pluginConfigManager.getAllTracks().firstOrNull { it.name == trackName }?.finishLine ?: run {
-            commandSender.sendMessage("Finish line is not specified for this track.")
-            return true
-        }
-        val timings = mutableListOf<Long>()
-        val laps = mutableListOf<Long>()
-        lineCrossJob = finishLineListener.playerPosition
-            .onStart {
-                plugin.server.pluginManager.registerEvents(scoreboardManager, plugin)
-            }
-            .filterIfCrossed(line)
-            .flowOn(Dispatchers.Default)
-            .onEach {
-                val time = System.currentTimeMillis()
-                if (timings.isEmpty()) {
-                    consoleLog("started first lap")
-                } else {
-                    val lapTime = time - timings.last()
-                    val isBestSoFar = lapTime < (laps.minOrNull() ?: Long.MAX_VALUE)
-                    val diff = laps.minOrNull()?.minus(lapTime)
-                        ?.let { " ${if (isBestSoFar) "-" else "+"}${abs(it).toTiming()}" }
-                        ?: ""
-                    val actionBarColor = if (isBestSoFar) TextColor.color(0, 180, 0) else TextColor.color(160, 0, 0)
-                    // fixme: player ref
-                    plugin.server.onlinePlayers.first()
-                        .sendActionBar(
-                            Component.text(
-                                "${lapTime.toTiming()}$diff",
-                                actionBarColor
-                            )
-                        )
-                    laps.add(lapTime)
-                    scoreboardManager.updateLaps(plugin.server.onlinePlayers.first(), laps)
-                }
-                timings.add(time)
-            }
-            .onCompletion {
-                scoreboardManager.clearAllBoards()
-                PlayerQuitEvent.getHandlerList().unregister(scoreboardManager)
-            }
-            .launchIn(pluginScope)
         return true
     }
 }

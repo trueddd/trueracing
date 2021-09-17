@@ -13,15 +13,19 @@ class TrueRacing : JavaPlugin(), CoroutineScope {
     override val coroutineContext: CoroutineContext
         get() = PluginDispatcher(this)
 
-    private val finishLineListener by lazy { FinishLineListener() }
     private val finishLineRegistrar by lazy { FinishLineRegistrar(this) }
     private val pluginConfigManager by lazy { PluginConfigManager(this) }
     private val pilotsManager by lazy { PilotsManager(this) }
-    private val commandHandler by lazy { CommandHandler(this, finishLineRegistrar, finishLineListener, pluginConfigManager, pilotsManager) }
+    private val scoreboardManager by lazy { ScoreboardManager() }
+    private val raceManager by lazy {
+        RaceManager(this, pluginConfigManager, scoreboardManager, pilotsManager)
+    }
+    private val commandHandler by lazy {
+        CommandHandler(finishLineRegistrar, pluginConfigManager, pilotsManager, raceManager)
+    }
 
     override fun onEnable() {
         server.consoleSender.sendMessage("Plugin enabled")
-        server.pluginManager.registerEvents(finishLineListener, this)
     }
 
     override fun onDisable() {

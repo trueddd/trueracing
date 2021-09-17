@@ -1,6 +1,7 @@
 package com.github.trueddd.trueracing
 
 import com.github.trueddd.trueracing.data.FinishLineRectangle
+import com.github.trueddd.trueracing.data.Pilot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
@@ -12,17 +13,10 @@ fun consoleLog(message: String) {
     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "say $message")
 }
 
-fun Location.isSame(other: Location): Boolean {
-    return world.uid == other.world.uid
-            && blockX == other.blockX
-            && blockY == other.blockY
-            && blockZ == other.blockZ
-}
-
-fun Flow<Pair<Player, Location>>.filterIfCrossed(finishLine: FinishLineRectangle): Flow<Location> {
-    var inBlock = false
+fun Flow<Pair<Player, Location>>.filterIfCrossed(finishLine: FinishLineRectangle, pilots: List<String>): Flow<Player> {
+    val inBlockMap = pilots.associateWith { false }.toMutableMap()
     return flow {
-        collect { (_, location) ->
+        collect { (player, location) ->
             val nowInBlock = when {
                 location.world.name != finishLine.minCorner.world -> false
                 location.blockX >= finishLine.minCorner.x
@@ -31,10 +25,10 @@ fun Flow<Pair<Player, Location>>.filterIfCrossed(finishLine: FinishLineRectangle
                         && location.blockZ <= finishLine.maxCorner.z -> true
                 else -> false
             }
-            if (nowInBlock && !inBlock) {
-                emit(location)
+            if (nowInBlock && inBlockMap[player.name] == false) {
+                emit(player)
             }
-            inBlock = nowInBlock
+            inBlockMap[player.name] = nowInBlock
         }
     }
 }

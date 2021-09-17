@@ -51,7 +51,7 @@ sealed class Commands {
         }
 
         object Create : Track() {
-            override val regex = Regex("^track create ([\\w\\d-_]+)$")
+            override val regex = Regex("^track-create ([\\w\\d-_]+) ([\\d]+)$")
         }
 
         object Delete : Track() {

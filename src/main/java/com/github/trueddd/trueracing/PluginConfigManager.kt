@@ -32,9 +32,9 @@ class PluginConfigManager(
         return config.value.tracks
     }
 
-    fun addTrack(trackName: String, location: Location) {
+    fun addTrack(trackName: String, lapsCount: Int, location: Location) {
         updateTracks {
-            it + Track(trackName, location.toSimpleLocation(), null)
+            it + Track(trackName, location.toSimpleLocation(), lapsCount, null)
         }
     }
 
@@ -50,7 +50,7 @@ class PluginConfigManager(
                 if (track.name != trackName) {
                     track
                 } else {
-                    Track(trackName, track.location, finishLine)
+                    Track(trackName, track.location, track.lapCount, finishLine)
                 }
             }
         }

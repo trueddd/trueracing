@@ -7,16 +7,21 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerMoveEvent
 
-class FinishLineListener : Listener {
+class FinishLineListener(
+    private val players: List<String>,
+) : Listener {
 
-    val playerPosition = MutableSharedFlow<Pair<Player, Location>>(extraBufferCapacity = 1)
+    val playerPositionFlow = MutableSharedFlow<Pair<Player, Location>>(extraBufferCapacity = 1)
 
     @EventHandler
     fun onEvent(event: PlayerMoveEvent) {
+        if (event.player.name !in players) {
+            return
+        }
         if (!event.hasChangedPosition()) {
             return
         }
         val location = event.player.location
-        playerPosition.tryEmit(event.player to location)
+        playerPositionFlow.tryEmit(event.player to location)
     }
 }

@@ -7,10 +7,12 @@ authors: [ truetripled ]
 description: Racing plugin
 website: none
 commands:
+  track-create:
+    description: Creates a racing track
+    usage: track-create <track name> <laps count>
   track:
     aliases:
       - track list
-      - track create
       - track delete
       - track finish create
       - track finish delete
@@ -20,10 +22,9 @@ commands:
     usage: race <track name>
   team-list:
     description: Team management
-    usage: qwe
   team-create:
     description: Team management
-    usage: qwe
+    usage: team-create <team name> <color code>
   team-delete:
     description: Team management
-    usage: qwe
+    usage: team-delete <team name>
