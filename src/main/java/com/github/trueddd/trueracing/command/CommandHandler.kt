@@ -1,66 +1,27 @@
 package com.github.trueddd.trueracing.command
 
 import com.github.trueddd.trueracing.*
-import com.github.trueddd.trueracing.data.PluginConfig
-import com.github.trueddd.trueracing.data.Track
-import com.google.gson.Gson
-import com.google.gson.stream.JsonReader
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.TextColor
-import org.bukkit.Location
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.event.player.PlayerQuitEvent
-import java.io.File
-import java.io.FileReader
-import java.io.FileWriter
 import kotlin.math.abs
 
 class CommandHandler(
     private val plugin: TrueRacing,
     private val finishLineRegistrar: FinishLineRegistrar,
     private val finishLineListener: FinishLineListener,
+    private val pluginConfigManager: PluginConfigManager,
+    private val pilotsManager: PilotsManager,
 ) {
 
     private val pluginScope: CoroutineScope
         get() = plugin
 
-    private val gson = Gson()
-
-    private val configFile by lazy { File(plugin.dataFolder, "config.json") }
-
-    private val config = MutableStateFlow(PluginConfig.default())
-
     private val scoreboardManager by lazy { ScoreboardManager() }
-
-    init {
-        if (!configFile.exists()) {
-            configFile.parentFile.mkdir()
-            configFile.createNewFile()
-        }
-        config.value = gson.fromJson(JsonReader(FileReader(configFile)), PluginConfig::class.java) ?: PluginConfig.default()
-    }
-
-    private fun updateConfig() {
-        val writer = FileWriter(configFile, false)
-        gson.toJson(config.value, PluginConfig::class.java, writer)
-        writer.close()
-    }
-
-    private fun getAllTracks(): List<String> {
-        return config.value.tracks.map { it.name }
-    }
-
-    private fun addTrackToConfig(trackName: String, location: Location) {
-        config.value = config.value.copy(
-            tracks = config.value.tracks + Track(trackName, location.toSimpleLocation(), null)
-        )
-        updateConfig()
-    }
 
     fun handle(commandSender: CommandSender, name: String, args: List<String>): Boolean {
         val (command, commandArgs) = Commands.parse(name, args) ?: return false
@@ -68,31 +29,80 @@ class CommandHandler(
             Commands.Track.Finish.Create -> registerFinishLine(commandSender, commandArgs)
             Commands.Track.List -> listTracks(commandSender)
             Commands.Track.Create -> addTrack(commandSender, commandArgs)
+            Commands.Track.Delete -> deleteTrack(commandSender, commandArgs)
             Commands.Race -> toggleRaceStatus(commandSender, commandArgs)
+            Commands.Team.Create -> addTeam(commandSender, commandArgs)
+            Commands.Team.List -> listTeams(commandSender)
             else -> false
         }
     }
 
+    private fun addTeam(commandSender: CommandSender, args: List<String>): Boolean {
+        if (commandSender !is Player) {
+            commandSender.sendMessage("You are not allowed to register team.")
+            return true
+        }
+        val teamName = args.firstOrNull()
+        if (teamName.isNullOrEmpty()) {
+            commandSender.sendMessage("Team needs to be named.")
+            return true
+        }
+        val colorCode = args.getOrNull(1)
+        if (colorCode.isNullOrEmpty()) {
+            commandSender.sendMessage("Specify color code for team.")
+            return true
+        }
+        if (pilotsManager.getAllTeams().any { it.name == teamName }) {
+            commandSender.sendMessage("Team with this name is already registered.")
+            return true
+        }
+        pilotsManager.addTeam(commandSender, teamName, colorCode)
+        commandSender.sendMessage("Team \"$teamName\" created")
+        return true
+    }
+
+    private fun listTeams(commandSender: CommandSender): Boolean {
+        val teams = pilotsManager.getAllTeams().map { it.name }
+        if (teams.isEmpty()) {
+            commandSender.sendMessage("No teams registered.")
+        } else {
+            commandSender.sendMessage("Registered teams: ${teams.joinToString()}.")
+        }
+        return true
+    }
+
     private fun addTrack(commandSender: CommandSender, args: List<String>): Boolean {
-        if (!commandSender.isOp) {
+        if (!commandSender.isOp || commandSender !is Player) {
             commandSender.sendMessage("You are not allowed to register tracks.")
             return true
         }
-        if (args.isEmpty() || args.firstOrNull().isNullOrEmpty()) {
+        val trackName = args.firstOrNull()
+        if (trackName.isNullOrEmpty()) {
             commandSender.sendMessage("Track needs to be named.")
             return true
         }
-        if (commandSender !is Player) {
-            commandSender.sendMessage("Only players can create tracks.")
+        pluginConfigManager.addTrack(trackName, commandSender.location)
+        commandSender.sendMessage("Track \"$trackName\" created")
+        return true
+    }
+
+    private fun deleteTrack(commandSender: CommandSender, args: List<String>): Boolean {
+        if (!commandSender.isOp || commandSender !is Player) {
+            commandSender.sendMessage("You are not allowed to delete tracks.")
             return true
         }
-        addTrackToConfig(args.first(), commandSender.location)
-        commandSender.sendMessage("Track \"${args.first()}\" created")
+        val trackName = args.firstOrNull()
+        if (trackName.isNullOrEmpty()) {
+            commandSender.sendMessage("Track needs to be named.")
+            return true
+        }
+        pluginConfigManager.removeTrack(trackName)
+        commandSender.sendMessage("Track \"$trackName\" deleted")
         return true
     }
 
     private fun listTracks(commandSender: CommandSender): Boolean {
-        val tracks = getAllTracks()
+        val tracks = pluginConfigManager.getAllTracks().map { it.name }
         if (tracks.isEmpty()) {
             commandSender.sendMessage("No tracks registered.")
         } else {
@@ -110,7 +120,7 @@ class CommandHandler(
             commandSender.sendMessage("Pass track name to register finish line.")
             return true
         }
-        if (config.value.tracks.none { it.name == trackName }) {
+        if (pluginConfigManager.getAllTracks().none { it.name == trackName }) {
             commandSender.sendMessage("Track not found.")
             return true
         }
@@ -120,16 +130,7 @@ class CommandHandler(
                 commandSender.sendMessage("Cannot retrieve finish line")
                 return true
             }
-            config.value = config.value.copy(
-                tracks = config.value.tracks.map { track ->
-                    if (track.name != trackName) {
-                        track
-                    } else {
-                        Track(trackName, track.location, finishLine)
-                    }
-                }
-            )
-            updateConfig()
+            pluginConfigManager.setFinishLine(trackName, finishLine)
             commandSender.sendMessage("Finish line for track \"$trackName\" saved.")
         } else {
             finishLineRegistrar.startMarking(commandSender)
@@ -150,12 +151,11 @@ class CommandHandler(
             lineCrossJob = null
             return true
         }
-        println(commandArgs)
         val trackName = commandArgs.firstOrNull() ?: run {
             commandSender.sendMessage("Specify track for the race.")
             return true
         }
-        val line = config.value.tracks.firstOrNull { it.name == trackName }?.finishLine ?: run {
+        val line = pluginConfigManager.getAllTracks().firstOrNull { it.name == trackName }?.finishLine ?: run {
             commandSender.sendMessage("Finish line is not specified for this track.")
             return true
         }

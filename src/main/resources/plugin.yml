@@ -18,3 +18,12 @@ commands:
   race:
     description: start race
     usage: race <track name>
+  team-list:
+    description: Team management
+    usage: qwe
+  team-create:
+    description: Team management
+    usage: qwe
+  team-delete:
+    description: Team management
+    usage: qwe

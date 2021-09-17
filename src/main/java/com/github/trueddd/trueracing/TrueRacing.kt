@@ -15,7 +15,9 @@ class TrueRacing : JavaPlugin(), CoroutineScope {
 
     private val finishLineListener by lazy { FinishLineListener() }
     private val finishLineRegistrar by lazy { FinishLineRegistrar(this) }
-    private val commandHandler by lazy { CommandHandler(this, finishLineRegistrar, finishLineListener) }
+    private val pluginConfigManager by lazy { PluginConfigManager(this) }
+    private val pilotsManager by lazy { PilotsManager(this) }
+    private val commandHandler by lazy { CommandHandler(this, finishLineRegistrar, finishLineListener, pluginConfigManager, pilotsManager) }
 
     override fun onEnable() {
         server.consoleSender.sendMessage("Plugin enabled")
