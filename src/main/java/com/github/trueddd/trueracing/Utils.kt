@@ -1,17 +1,11 @@
 package com.github.trueddd.trueracing
 
 import com.github.trueddd.trueracing.data.FinishLineRectangle
-import com.github.trueddd.trueracing.data.Pilot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
-import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.entity.Player
-
-fun consoleLog(message: String) {
-    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "say $message")
-}
 
 fun Flow<Pair<Player, Location>>.filterIfCrossed(finishLine: FinishLineRectangle, pilots: List<String>): Flow<Player> {
     val inBlockMap = pilots.associateWith { false }.toMutableMap()
