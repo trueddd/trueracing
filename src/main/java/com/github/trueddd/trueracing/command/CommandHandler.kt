@@ -1,18 +1,17 @@
 package com.github.trueddd.trueracing.command
 
-import com.github.trueddd.trueracing.FinishLineRegistrar
-import com.github.trueddd.trueracing.PilotsManager
-import com.github.trueddd.trueracing.PluginConfigManager
-import com.github.trueddd.trueracing.RaceManager
+import com.github.trueddd.trueracing.*
 import org.bukkit.ChatColor
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 
 class CommandHandler(
     private val finishLineRegistrar: FinishLineRegistrar,
+    private val trackLightsRegistrar: TrackLightsRegistrar,
     private val pluginConfigManager: PluginConfigManager,
     private val pilotsManager: PilotsManager,
     private val raceManager: RaceManager,
+    private val plugin: TrueRacing,
 ) {
 
     fun handle(commandSender: CommandSender, name: String, args: List<String>): Boolean {
@@ -26,8 +25,37 @@ class CommandHandler(
             Commands.Team.Create -> addTeam(commandSender, commandArgs)
             Commands.Team.Delete -> deleteTeam(commandSender, commandArgs)
             Commands.Team.List -> listTeams(commandSender)
+            Commands.Track.Lights -> registerTrackLights(commandSender, commandArgs)
             else -> false
         }
+    }
+
+    private fun registerTrackLights(commandSender: CommandSender, commandArgs: List<String>): Boolean {
+        if (commandSender !is Player) {
+            commandSender.sendMessage("Only player can register track lights.")
+            return true
+        }
+        val trackName = commandArgs.firstOrNull() ?: run {
+            commandSender.sendMessage("Pass track name to register finish line.")
+            return true
+        }
+        if (pluginConfigManager.getAllTracks().none { it.name == trackName }) {
+            commandSender.sendMessage("Track not found.")
+            return true
+        }
+        val wasMarking = trackLightsRegistrar.isPlayerMarking(commandSender)
+        if (wasMarking) {
+            val finishLine = trackLightsRegistrar.stopMarking(commandSender) ?: run {
+                commandSender.sendMessage("Cannot retrieve lights location")
+                return true
+            }
+            pluginConfigManager.setTrackLights(trackName, finishLine)
+            commandSender.sendMessage("Lights for track \"$trackName\" saved.")
+        } else {
+            trackLightsRegistrar.startMarking(commandSender)
+            commandSender.sendMessage("Right click on Redstone Lamps to regitster them.")
+        }
+        return true
     }
 
     private fun addTeam(commandSender: CommandSender, args: List<String>): Boolean {

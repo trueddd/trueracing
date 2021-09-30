@@ -6,6 +6,7 @@ sealed class Commands {
 
         private val list = listOf(
             Track.List,
+            Track.Lights,
             Track.Create,
             Track.Delete,
             Track.Finish.Create,
@@ -14,6 +15,7 @@ sealed class Commands {
             Team.List,
             Team.Create,
             Team.Delete,
+            Test,
         )
 
         fun parse(name: String, args: List<String>): Pair<Commands, List<String>>? {
@@ -28,6 +30,10 @@ sealed class Commands {
     }
 
     abstract val regex: Regex
+
+    object Test : Commands() {
+        override val regex = Regex("^test$")
+    }
 
     sealed class Team : Commands() {
 
@@ -48,6 +54,10 @@ sealed class Commands {
 
         object List : Track() {
             override val regex = Regex("^track list$")
+        }
+
+        object Lights : Track() {
+            override val regex = Regex("^track-lights ([\\w\\d-_]+)$")
         }
 
         object Create : Track() {

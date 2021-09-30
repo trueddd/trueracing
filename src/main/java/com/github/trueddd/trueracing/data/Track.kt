@@ -5,4 +5,5 @@ data class Track(
     val location: Location,
     val lapCount: Int,
     val finishLine: FinishLineRectangle?,
+    val lights: List<Location>?,
 )

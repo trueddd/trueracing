@@ -1,9 +1,14 @@
 package com.github.trueddd.trueracing
 
+import com.github.trueddd.trueracing.data.Location
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import net.kyori.adventure.text.Component
+import org.bukkit.Bukkit
+import org.bukkit.block.Block
+import org.bukkit.block.data.Lightable
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.event.player.PlayerMoveEvent
@@ -58,10 +63,12 @@ class RaceManager(
             .onStart {
                 plugin.server.pluginManager.registerEvents(scoreboardManager, plugin)
                 plugin.server.pluginManager.registerEvents(finishLineListener, plugin)
-                val startTime = System.currentTimeMillis()
+                val startTime = startRaceTimer(track.lights)
                 pilots.forEach {
                     timings[it.name] = listOf(startTime)
-                    it.sendActionBar(Component.text("Start!"))
+                    if (track.lights.isNullOrEmpty()) {
+                        it.sendActionBar(Component.text("Start!"))
+                    }
                 }
             }
             .flowOn(plugin.coroutineContext)
@@ -85,5 +92,29 @@ class RaceManager(
                 PlayerMoveEvent.getHandlerList().unregister(finishLineListener)
             }
             .launchIn(plugin)
+    }
+
+    private suspend fun startRaceTimer(lights: List<Location>?): Long {
+        if (lights == null) {
+            return System.currentTimeMillis()
+        }
+        val lamps = lights.mapNotNull { Bukkit.getWorld(it.world)?.getBlockAt(it.x, it.y, it.z) }
+        lamps.forEach {
+            it.toggleLampLit(false)
+        }
+        lamps.forEach {
+            delay(800L)
+            it.toggleLampLit(true)
+        }
+        delay((700..1200).random().toLong())
+        lamps.forEach {
+            it.toggleLampLit(false)
+        }
+        return System.currentTimeMillis()
+    }
+
+    private fun Block.toggleLampLit(isLit: Boolean) {
+        val data = blockData as? Lightable ?: return
+        blockData = data.apply { this.isLit = isLit }
     }
 }

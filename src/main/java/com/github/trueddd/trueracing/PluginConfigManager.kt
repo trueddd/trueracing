@@ -34,7 +34,7 @@ class PluginConfigManager(
 
     fun addTrack(trackName: String, lapsCount: Int, location: Location) {
         updateTracks {
-            it + Track(trackName, location.toSimpleLocation(), lapsCount, null)
+            it + Track(trackName, location.toSimpleLocation(), lapsCount, null, null)
         }
     }
 
@@ -50,7 +50,19 @@ class PluginConfigManager(
                 if (track.name != trackName) {
                     track
                 } else {
-                    Track(trackName, track.location, track.lapCount, finishLine)
+                    track.copy(finishLine = finishLine)
+                }
+            }
+        }
+    }
+
+    fun setTrackLights(trackName: String, locations: Set<Location>?) {
+        updateTracks { tracks ->
+            tracks.map { track ->
+                if (track.name != trackName) {
+                    track
+                } else {
+                    track.copy(lights = locations?.map { it.toSimpleLocation() })
                 }
             }
         }

@@ -78,7 +78,6 @@ class FinishLineRegistrar(
                 event.player.sendMessage("Cannot register finish line with changing Y coordinate.")
                 return
             }
-//            event.player.sendMessage("registered ${block.type}")
             event.player.playSound(event.player.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.2f, 1.0f)
             markingMap[event.player.name] = currentLine + block.location
         }

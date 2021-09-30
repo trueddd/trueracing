@@ -10,6 +10,9 @@ commands:
   track-create:
     description: Creates a racing track
     usage: track-create <track name> <laps count>
+  track-lights:
+    description: Toggle selection mode for start lights
+    usage: track-lights <track name>
   track:
     aliases:
       - track list
@@ -28,3 +31,5 @@ commands:
   team-delete:
     description: Team management
     usage: team-delete <team name>
+  test:
+    description: qwe
