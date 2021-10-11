@@ -1,6 +1,6 @@
 package com.github.trueddd.trueracing
 
-import com.github.trueddd.trueracing.data.FinishLineRectangle
+import com.github.trueddd.trueracing.data.model.FinishLineRectangle
 import org.bukkit.Effect
 import org.bukkit.Location
 import org.bukkit.Material
@@ -60,8 +60,8 @@ class FinishLineRegistrar(
         val world = line.first().world.name
         val y = line.first().blockY
         return FinishLineRectangle(
-            com.github.trueddd.trueracing.data.Location(minX, y, minZ, world),
-            com.github.trueddd.trueracing.data.Location(maxX, y, maxZ, world),
+            com.github.trueddd.trueracing.data.model.Location(minX, y, minZ, world),
+            com.github.trueddd.trueracing.data.model.Location(maxX, y, maxZ, world),
         )
             .also { markingMap.remove(player.name) }
     }

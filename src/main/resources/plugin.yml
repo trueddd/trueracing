@@ -15,14 +15,18 @@ commands:
     usage: track-lights <track name>
   track:
     aliases:
-      - track list
-      - track delete
       - track finish create
       - track finish delete
     description: Track managing
-  race:
-    description: start race
-    usage: race <track name>
+  race-start:
+    description: start a race
+    usage: race-start <track name>
+  race-register:
+    description: register a race and pilots
+    usage: race-register <track name> <pilot1> <pilot2> ... <pilotN>
+#  race-delete:
+#    description: deletes a record of race
+#    usage: race-delete <race name>
   team-list:
     description: Team management
   team-create:

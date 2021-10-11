@@ -1,5 +1,7 @@
 package com.github.trueddd.trueracing.data
 
+import com.github.trueddd.trueracing.data.model.Track
+
 data class PluginConfig(
     val tracks: List<Track>,
 ) {

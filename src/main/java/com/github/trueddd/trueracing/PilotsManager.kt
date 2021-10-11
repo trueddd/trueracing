@@ -1,8 +1,8 @@
 package com.github.trueddd.trueracing
 
-import com.github.trueddd.trueracing.data.Pilot
+import com.github.trueddd.trueracing.data.model.Pilot
 import com.github.trueddd.trueracing.data.PilotsConfig
-import com.github.trueddd.trueracing.data.RacingTeam
+import com.github.trueddd.trueracing.data.model.RacingTeam
 import com.google.gson.reflect.TypeToken
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin

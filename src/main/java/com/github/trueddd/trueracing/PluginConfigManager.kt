@@ -1,8 +1,8 @@
 package com.github.trueddd.trueracing
 
-import com.github.trueddd.trueracing.data.FinishLineRectangle
+import com.github.trueddd.trueracing.data.model.FinishLineRectangle
 import com.github.trueddd.trueracing.data.PluginConfig
-import com.github.trueddd.trueracing.data.Track
+import com.github.trueddd.trueracing.data.model.Track
 import com.google.gson.reflect.TypeToken
 import org.bukkit.Location
 import org.bukkit.plugin.Plugin

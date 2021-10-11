@@ -1,9 +1,12 @@
 package com.github.trueddd.trueracing
 
-import com.github.trueddd.trueracing.data.FinishLineRectangle
+import com.github.trueddd.trueracing.data.model.FinishLineRectangle
+import com.github.trueddd.trueracing.data.model.Pilot
+import com.github.trueddd.trueracing.data.model.RacingTeam
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import org.bukkit.ChatColor
 import org.bukkit.Location
 import org.bukkit.entity.Player
 
@@ -34,11 +37,21 @@ fun Long.toTiming(): String {
     return String.format("%d:%02d.%03d", minutes, seconds, millis)
 }
 
-fun Location.toSimpleLocation(): com.github.trueddd.trueracing.data.Location {
-    return com.github.trueddd.trueracing.data.Location(
+fun Location.toSimpleLocation(): com.github.trueddd.trueracing.data.model.Location {
+    return com.github.trueddd.trueracing.data.model.Location(
         blockX,
         blockY,
         blockZ,
         world.name,
     )
+}
+
+fun Pilot.colored(teams: List<RacingTeam>): String {
+    val team = teams.firstOrNull { it.name == teamName }
+    return if (team == null) {
+        playerName
+    } else {
+        val color = ChatColor.getByChar(team.color) ?: ""
+        "$color$playerName${ChatColor.RESET}"
+    }
 }

@@ -1,18 +1,21 @@
 package com.github.trueddd.trueracing
 
-import com.github.trueddd.trueracing.data.Location
+import com.github.trueddd.trueracing.data.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
+import org.bukkit.Material
 import org.bukkit.block.Block
 import org.bukkit.block.data.Lightable
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.BookMeta
 
 class RaceManager(
     private val plugin: TrueRacing,
@@ -21,16 +24,31 @@ class RaceManager(
     private val pilotsManager: PilotsManager,
 ) {
 
-    private val raceListeners = mutableMapOf<String, Job>()
+    private val raceListeners = mutableMapOf<String, Pair<Race, Job?>>()
 
     fun isRaceRunning(trackName: String): Boolean {
-        return raceListeners[trackName]?.isActive == true
+        return raceListeners[trackName]?.second?.isActive == true
+    }
+
+    fun registerRace(commandSender: CommandSender, trackName: String, pilotNames: List<String>) {
+        if (isRaceRunning(trackName)) {
+            commandSender.sendMessage("Race on this track is now running.")
+            return
+        }
+        val pilots = pilotsManager.getAllPilots().filter { it.playerName in pilotNames }
+        val race = Race(
+            pilots,
+            RaceStatus.REGISTERED,
+            emptyMap(),
+        )
+        raceListeners[trackName] = race to null
+        commandSender.sendMessage("Race registered.")
     }
 
     fun stopRace(commandSender: CommandSender, trackName: String) {
         raceListeners[trackName]
-            ?.let {
-                it.cancel()
+            ?.let { (_, job) ->
+                job?.cancel()
                 commandSender.sendMessage("Race is now finished.")
             }
             ?: run {
@@ -51,14 +69,22 @@ class RaceManager(
             commandSender.sendMessage("Finish line is not specified for this track.")
             return
         }
-        val timings = mutableMapOf<String, List<Long>>()
-        val lapTimes = mutableMapOf<String, List<Long>>()
-        val registeredPilots = pilotsManager.getAllPilots()
+        if (raceListeners[trackName] == null) {
+            commandSender.sendMessage("Race is not registered.")
+            return
+        }
+        val registeredPilots = raceListeners[trackName]?.first?.pilots
+        if (registeredPilots.isNullOrEmpty()) {
+            commandSender.sendMessage("Not enough pilots to start the race.")
+            return
+        }
         val pilots = commandSender.world.players.filter { pilot ->
             registeredPilots.any { it.playerName == pilot.name }
         }
         val pilotNames = pilots.map { it.name }
         val finishLineListener = FinishLineListener(pilotNames)
+        val timings = mutableMapOf<String, List<Long>>()
+        val lapTimes = mutableMapOf<String, List<Long>>()
         raceListeners[trackName] = finishLineListener.playerPositionFlow
             .onStart {
                 plugin.server.pluginManager.registerEvents(scoreboardManager, plugin)
@@ -70,6 +96,9 @@ class RaceManager(
                         it.sendActionBar(Component.text("Start!"))
                     }
                 }
+                raceListeners[trackName]?.let { (race, job) ->
+                    raceListeners[trackName] = race.copy(status = RaceStatus.STARTED) to job
+                }
             }
             .flowOn(plugin.coroutineContext)
             .filterIfCrossed(line, pilotNames)
@@ -78,20 +107,29 @@ class RaceManager(
                 val time = System.currentTimeMillis()
                 val lapTime = time - timings[player.name]!!.last()
                 val lapTimesForRacer = lapTimes[player.name]
-                val bestPersonal = lapTime < (lapTimesForRacer?.minOrNull() ?: Long.MAX_VALUE)
-                val bestLap = lapTime < (lapTimes.values.flatten().minOrNull() ?: Long.MAX_VALUE)
+//                val bestPersonal = lapTime < (lapTimesForRacer?.minOrNull() ?: Long.MAX_VALUE)
+//                val bestLap = lapTime < (lapTimes.values.flatten().minOrNull() ?: Long.MAX_VALUE)
                 lapTimes[player.name] = (lapTimesForRacer ?: emptyList()) + lapTime
                 scoreboardManager.updateLaps(player, lapTimes[player.name]!!)
                 timings[player.name] = (timings[player.name] ?: emptyList()) + time
             }
             .takeWhile { lapTimes.values.any { it.size < track.lapCount } }
             .onCompletion {
+                val raceRecap = writeToBook(
+                    trackName,
+                    lapTimes.mapKeys { (pilotName) -> registeredPilots.first { it.playerName == pilotName } },
+                    pilotsManager.getAllTeams(),
+                )
+                pilots.forEach {
+                    it.inventory.addItem(raceRecap)
+                }
                 raceListeners.remove(trackName)
                 scoreboardManager.clearAllBoards()
                 PlayerQuitEvent.getHandlerList().unregister(scoreboardManager)
                 PlayerMoveEvent.getHandlerList().unregister(finishLineListener)
             }
             .launchIn(plugin)
+            .let { raceListeners[trackName]!!.first to it }
     }
 
     private suspend fun startRaceTimer(lights: List<Location>?): Long {
@@ -116,5 +154,37 @@ class RaceManager(
     private fun Block.toggleLampLit(isLit: Boolean) {
         val data = blockData as? Lightable ?: return
         blockData = data.apply { this.isLit = isLit }
+    }
+
+    private fun writeToBook(trackName: String, timings: Map<Pilot, List<Long>>, teams: List<RacingTeam>): ItemStack {
+        return ItemStack(Material.WRITTEN_BOOK).apply {
+            val builder = (itemMeta as? BookMeta)?.toBuilder() ?: return@apply
+            val table = timings.map { it.key to it.value.sum() }.sortedBy { it.second }
+            val tablePage = StringBuilder().apply {
+                table.forEachIndexed { index, (pilot, laps) ->
+                    append("#${index + 1}. ${pilot.colored(teams)} - ${laps.toTiming()}\n")
+                }
+            }
+            val pilotTimingsPages = table.map { (pilot, _) ->
+                val laps = timings[pilot]!!
+                StringBuilder().apply {
+                    append("${pilot.colored(teams)}\'s laps\n")
+                    laps.forEachIndexed { number, time ->
+                        append("#${number + 1} - ${time.toTiming()}\n")
+                    }
+                }
+            }
+            val meta = builder
+                .author(Component.text("Race Plugin"))
+                .title(Component.text("$trackName race recap"))
+                .addPage(Component.text(tablePage.toString()))
+                .apply {
+                    pilotTimingsPages.forEach { page ->
+                        addPage(Component.text(page.toString()))
+                    }
+                }
+                .build()
+            itemMeta = meta
+        }
     }
 }

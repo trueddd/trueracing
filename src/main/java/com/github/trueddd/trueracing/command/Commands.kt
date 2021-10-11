@@ -11,7 +11,9 @@ sealed class Commands {
             Track.Delete,
             Track.Finish.Create,
             Track.Finish.Delete,
-            Race,
+            Race.Register,
+            Race.Start,
+            Race.Stop,
             Team.List,
             Team.Create,
             Team.Delete,
@@ -80,7 +82,22 @@ sealed class Commands {
         }
     }
 
-    object Race : Commands() {
-        override val regex = Regex("^race ([\\w\\d-_]+)$")
+    sealed class Race : Commands() {
+
+        object Start : Commands() {
+            override val regex = Regex("^race-start ([\\w\\d-_]+)$")
+        }
+
+        object Stop : Commands() {
+            override val regex = Regex("^race-stop ([\\w\\d-_]+)$")
+        }
+
+        object Register : Commands() {
+            override val regex = Regex("^race-register ([\\w\\d-_]+)(?: ([\\w\\d_]{3,16}))+$")
+        }
+
+//        object Delete : Commands() {
+//            override val regex = Regex("^race-delete ")
+//        }
     }
 }

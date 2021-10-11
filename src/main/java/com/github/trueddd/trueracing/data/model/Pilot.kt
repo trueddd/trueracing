@@ -1,4 +1,4 @@
-package com.github.trueddd.trueracing.data
+package com.github.trueddd.trueracing.data.model
 
 data class Pilot(
     val playerName: String,
