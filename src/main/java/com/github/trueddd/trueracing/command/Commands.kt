@@ -95,9 +95,5 @@ sealed class Commands {
         object Register : Commands() {
             override val regex = Regex("^race-register ([\\w\\d-_]+)(?: ([\\w\\d_]{3,16}))+$")
         }
-
-//        object Delete : Commands() {
-//            override val regex = Regex("^race-delete ")
-//        }
     }
 }

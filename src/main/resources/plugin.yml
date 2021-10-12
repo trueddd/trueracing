@@ -21,12 +21,12 @@ commands:
   race-start:
     description: start a race
     usage: race-start <track name>
+  race-stop:
+    description: stop a race
+    usage: race-stop <track name>
   race-register:
     description: register a race and pilots
     usage: race-register <track name> <pilot1> <pilot2> ... <pilotN>
-#  race-delete:
-#    description: deletes a record of race
-#    usage: race-delete <race name>
   team-list:
     description: Team management
   team-create:

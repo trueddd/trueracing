@@ -22,7 +22,7 @@ class TrueRacing : JavaPlugin(), CoroutineScope {
         RaceManager(this, pluginConfigManager, scoreboardManager, pilotsManager)
     }
     private val commandHandler by lazy {
-        CommandHandler(finishLineRegistrar, trackLightsRegistrar, pluginConfigManager, pilotsManager, raceManager, this)
+        CommandHandler(finishLineRegistrar, trackLightsRegistrar, pluginConfigManager, pilotsManager, raceManager)
     }
 
     override fun onEnable() {

@@ -12,7 +12,6 @@ import org.bukkit.block.Block
 import org.bukkit.block.data.Lightable
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
-import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.BookMeta
@@ -82,13 +81,13 @@ class RaceManager(
             registeredPilots.any { it.playerName == pilot.name }
         }
         val pilotNames = pilots.map { it.name }
-        val finishLineListener = FinishLineListener(pilotNames)
         val timings = mutableMapOf<String, List<Long>>()
-        val lapTimes = mutableMapOf<String, List<Long>>()
-        raceListeners[trackName] = finishLineListener.playerPositionFlow
+        val lapTimes = mutableMapOf<String, List<Long>>().apply {
+            pilotNames.forEach { put(it, emptyList()) }
+        }
+        raceListeners[trackName] = plugin.playerMoves(pilotNames)
             .onStart {
                 plugin.server.pluginManager.registerEvents(scoreboardManager, plugin)
-                plugin.server.pluginManager.registerEvents(finishLineListener, plugin)
                 val startTime = startRaceTimer(track.lights)
                 pilots.forEach {
                     timings[it.name] = listOf(startTime)
@@ -101,14 +100,13 @@ class RaceManager(
                 }
             }
             .flowOn(plugin.coroutineContext)
-            .filterIfCrossed(line, pilotNames)
+            .filterIfCrossed(line)
             .flowOn(Dispatchers.Default)
+            .filter { player -> lapTimes[player.name]?.let { it.size < track.lapCount } ?: false }
             .onEach { player ->
                 val time = System.currentTimeMillis()
                 val lapTime = time - timings[player.name]!!.last()
                 val lapTimesForRacer = lapTimes[player.name]
-//                val bestPersonal = lapTime < (lapTimesForRacer?.minOrNull() ?: Long.MAX_VALUE)
-//                val bestLap = lapTime < (lapTimes.values.flatten().minOrNull() ?: Long.MAX_VALUE)
                 lapTimes[player.name] = (lapTimesForRacer ?: emptyList()) + lapTime
                 scoreboardManager.updateLaps(player, lapTimes[player.name]!!)
                 timings[player.name] = (timings[player.name] ?: emptyList()) + time
@@ -126,7 +124,6 @@ class RaceManager(
                 raceListeners.remove(trackName)
                 scoreboardManager.clearAllBoards()
                 PlayerQuitEvent.getHandlerList().unregister(scoreboardManager)
-                PlayerMoveEvent.getHandlerList().unregister(finishLineListener)
             }
             .launchIn(plugin)
             .let { raceListeners[trackName]!!.first to it }

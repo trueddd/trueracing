@@ -9,11 +9,14 @@ import kotlinx.coroutines.flow.flow
 import org.bukkit.ChatColor
 import org.bukkit.Location
 import org.bukkit.entity.Player
+import org.bukkit.event.player.PlayerMoveEvent
 
-fun Flow<Pair<Player, Location>>.filterIfCrossed(finishLine: FinishLineRectangle, pilots: List<String>): Flow<Player> {
-    val inBlockMap = pilots.associateWith { false }.toMutableMap()
+fun Flow<PlayerMoveEvent>.filterIfCrossed(finishLine: FinishLineRectangle): Flow<Player> {
+    val inBlockMap = mutableMapOf<String, Boolean>()
     return flow {
-        collect { (player, location) ->
+        collect { event ->
+            val player = event.player
+            val location = player.location
             val nowInBlock = when {
                 location.world.name != finishLine.minCorner.world -> false
                 location.blockX >= finishLine.minCorner.x
